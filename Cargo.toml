@@ -186,6 +186,8 @@ futures-util = { version = "0.3.28", default-features = false, features = ["std"
 # wasm
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
+# The fetch backend's futures and handles asserted Send: a Worker-style runtime has one thread.
+send_wrapper = { version = "0.6", features = ["futures"] }
 js-sys = "0.3.77"
 serde_json = "1.0"
 wasm-bindgen = "0.2.89"

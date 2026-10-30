@@ -162,7 +162,8 @@ impl Client {
         mut req: Request,
     ) -> impl Future<Output = crate::Result<Response>> {
         self.merge_headers(&mut req);
-        fetch(req)
+        // The runtime is single-threaded; the JS handles this future holds never cross a thread.
+        send_wrapper::SendWrapper::new(fetch(req))
     }
 }
 

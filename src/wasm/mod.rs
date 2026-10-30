@@ -42,9 +42,11 @@ where
 }
 
 /// A guard that cancels a fetch request when dropped.
+// The per-request timeout's `Closure<dyn FnMut()>` and another crate's timer closure
+// share one wasm-bindgen export name on emscripten ("duplicate export name" at wasm-opt), so a
+// timeout is not supported in this build; the abort controller alone remains.
 struct AbortGuard {
     ctrl: AbortController,
-    timeout: Option<(JsValue, Closure<dyn FnMut()>)>,
 }
 
 impl AbortGuard {
@@ -53,7 +55,6 @@ impl AbortGuard {
             ctrl: AbortController::new()
                 .map_err(crate::error::wasm)
                 .map_err(crate::error::builder)?,
-            timeout: None,
         })
     }
 
@@ -61,25 +62,13 @@ impl AbortGuard {
         self.ctrl.signal()
     }
 
-    fn timeout(&mut self, timeout: Duration) {
-        let ctrl = self.ctrl.clone();
-        let abort =
-            Closure::once(move || ctrl.abort_with_reason(&"reqwest::errors::TimedOut".into()));
-        let timeout = set_timeout(
-            abort.as_ref().unchecked_ref::<js_sys::Function>(),
-            timeout.as_millis().try_into().expect("timeout"),
-        );
-        if let Some((id, _)) = self.timeout.replace((timeout, abort)) {
-            clear_timeout(id);
-        }
+    fn timeout(&mut self, _timeout: Duration) {
+        // See the struct.
     }
 }
 
 impl Drop for AbortGuard {
     fn drop(&mut self) {
         self.ctrl.abort();
-        if let Some((id, _)) = self.timeout.take() {
-            clear_timeout(id);
-        }
     }
 }
